@@ -1,0 +1,90 @@
+version: '3.7'
+services:
+
+  osticket-app:
+    image: ryanwclark/osticket
+    container_name: osticket-app
+    labels:
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:url.example.com
+      - traefik.port=80
+      - traefik.protocol=http
+      - traefik.docker.network=proxy
+      - traefik.backend=osticket-app
+    volumes:
+      - ./data/:/www/osticket
+      - ./logs/:/www/logs
+    environment:
+      - ZABBIX_HOSTNAME=osticket-app
+
+      - CRON_PERIOD=10
+
+      - DB_HOST=osticket-db
+      - DB_NAME=osticket
+      - DB_USER=osticket
+      - DB_PASS=password
+
+      - SMTP_HOST=localhost
+      - SMTP_PORT=25
+      - SMTP_FROM=osticket@example.com
+      - SMTP_TLS=0
+      - SMTP_USER=osticket@example.com
+      - SMTP_PASS=password
+
+      - INSTALL_SECRET=somerandomlargecharacterstring
+      - INSTALL_EMAIL=osticket@example.com
+      - INSTALL_NAME=OSTicket Helpdesk
+
+      - ADMIN_FIRSTNAME=Admin
+      - ADMIN_LASTNAME=User
+      - ADMIN_EMAIL=admin@example.com
+      - ADMIN_USER=ostadmin
+      - ADMIN_PASS=Password123
+    networks:
+      - proxy
+      - services
+    restart: always
+
+  osticket-db:
+    image: ryanwclark/mariadb
+    container_name: osticket-db
+    volumes:
+      - /var/local/db/osticket:/var/lib/mysql
+    environment:
+      - ROOT_PASS=securepassword
+      - DB_NAME=osticket
+      - DB_USER=osticket
+      - DB_PASS=password
+
+      - ZABBIX_HOSTNAME=osticket-db
+    networks:
+      - services
+    restart: always
+
+  osticket-db-backup:
+    container_name: osticket-db-backup
+    image: ryanwclark/mariadb-backup
+    links:
+      - osticket-db
+    volumes:
+      - ./dbbackup:/backup
+    environment:
+      - DB_HOST=osticket-db
+      - DB_TYPE=mariadb
+      - DB_NAME=osticket
+      - DB_USER=osticket
+      - DB_PASSWORD=userpassword
+      - DB_DUMP_FREQ=1440
+      - DB_DUMP_BEGIN=0000
+      - DB_CLEANUP_TIME=8640
+      - COMPRESSION=BZ
+    networks:
+      - services
+    restart: always
+
+networks:
+  proxy:
+    external: true
+  services:
+    external: true
+
